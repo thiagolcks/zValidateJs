@@ -1,0 +1,157 @@
+/**
+ * Define o formulário que será validado, e seus respectivos blocos de mensagem
+ * 
+ * @param form Id do formulário
+ */
+function Validator(form_id) {
+	this.campos = '';
+	this.form = jQuery('#' + form_id);
+	this.msgs = this.form.find('.msgs');
+
+	/**
+	 * Checa determinado campo
+	 * 
+	 * @param {String} id Id do elemento a ser validado
+	 * @param {String} label Label que deverá aparece em caso de erro
+	 * @param {Integer} length Quantidade mínima de caracteres esperado
+	 * @param {String} tipo Tipo do campo a ser validado - nome, email, checkbox
+	 * @param {String} padrao Valor padrão do campo
+	 */
+	this.check = function (id, label, length, tipo, padrao) {
+		var campo = jQuery('#' + id),
+			valor = jQuery.trim(campo.val()),
+			ret = "",
+			sobrenome = "";
+
+		campo.val(valor);
+
+		if (valor.length < length || valor === padrao) {
+			campo.addClass('requerido');
+			ret = label + ', ';
+		} else if (tipo === 'nome') {
+			// Se não tiver espaço
+			if (valor.search(' ') === -1) {
+				campo.addClass('requerido');
+				ret = label + ', ';
+			} else {
+				sobrenome = valor.substr(valor.search(' '));
+				if (sobrenome.length < 2) {
+					campo.addClass('requerido');
+					ret = label + ', ';
+				}
+			}
+		} else if (tipo === 'email') {
+			if (!this.isEmail(campo.val())) {
+				campo.addClass('requerido');
+				ret = label + ', ';
+			}
+		} else if (tipo === 'checkbox') {
+			if (jQuery('#' + id + ':checked').length === 0) {
+				campo.addClass('requerido');
+				ret = label + ', ';
+			}
+		}
+		if (ret.length > 0) {
+			this.campos += ret;
+		} else {
+			campo.removeClass('requerido');
+		}
+
+		return this;
+	};
+
+	/**
+	 * Faz a validação
+	 * 
+	 * @return {Bool} O resultado da validação
+	 */
+	this.validate = function () {
+
+		var msg = this.campos.substr(0, this.campos.length - 2).replace(/,([a-zA-Z ]+)$/, ' e $1');
+
+		if (this.campos.length === 0) {
+			this.msgs.addClass('enviando').html('Enviando a mensagem...').show();
+			return true;
+		} else {
+			this.limpaMsgs();
+			this.msgs.addClass('msg-erro').html('Atenção, não esqueça de preencher: ' + msg).show();
+			this.campos = '';
+			return false;
+		}
+	};
+
+	/**
+	 * Limpa o campo de mensagens
+	 */
+	this.limpaMsgs = function () {
+		this.msgs
+			.removeClass('msg-erro')
+			.removeClass('msg-sucesso')
+			.removeClass('msg-enviando')
+			.hide();
+	};
+
+	/**
+	 * Valida e-mail
+	 * 
+	 * @param email string
+	 * @return {Bool} O resultado da validação
+	 */
+	this.isEmail = function (email) {
+		var er = /^[a-zA-Z0-9][a-zA-Z0-9\._\-]+@([a-zA-Z0-9\._\-]+\.)[a-zA-Z-0-9]{2}/;
+		if (er.exec(email)) {
+			return true;
+		} else {
+			return false;
+		}
+	};
+
+
+	/**
+	 * Reseta todos os campos do formulário selecionado
+	 */
+	this.limpaForm = function () {
+		jQuery(':input', this.form)
+			.not(':button, :submit, :reset, :hidden', ':radio', ':checkbox')
+			.val('')
+			.removeAttr('selected');
+		jQuery(':checkbox, :radio', this.form).removeAttr('checked');
+	};
+
+
+	/**
+	 * Informa ao usuário que o formulário foi enviado corretamente
+	 * 
+	 * @param {String} Mensagem para o usuário
+	 */
+	this.informaSucesso = function (msg) {
+		msg = typeof msg === 'undefined'  ? 'Obrigado! Sua mensagem foi enviada com sucesso, e em breve entraremos em contato com você.' : '';
+		this.limpaMsgs();
+		this.msgs.html(msg).show();
+		return this;
+	};
+
+}
+
+
+// Página de contato
+function pag_contato($) {
+	var form = $('#contato-form'),
+		val = new Validator('contato-form');
+
+	//form.zt('spambot');
+	form.submit(function (e) {
+		e.preventDefault();
+
+		val.check('nome', 'nome completo', 5, 'nome')
+			.check('email', 'e-mail', 5, 'email')
+		    .check('mensagem', 'mensagem', 7);
+		//val.check('spambot', 'verificador de spammer', 0, 'checkbox');
+		if (!val.validate()) {
+			return;
+		}
+		jQuery.post(form.attr('action'), form.serialize(), function (ret) {
+			val.informaSucesso().limpaForm();
+		});
+	});
+}
